@@ -363,7 +363,4 @@ function Seq:apply(op)
     self = Seq.map(self, op)
 end
 
-local seq = Seq.new({ 1, 2, 3 })
-print(seq)
-
 return Seq
