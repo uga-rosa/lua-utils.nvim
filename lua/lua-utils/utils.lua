@@ -1,26 +1,45 @@
 local utils = {}
 
----Assert with formatted message.
----@param v boolean
----@param msg string
----@param ... any
-function utils.assertf(v, msg, ...)
-    local args = { ... }
-    if #args == 0 then
-        assert(v, msg)
-    else
-        for i, a in ipairs(args) do
-            args[i] = vim.inspect(a)
-        end
-        assert(v, string.format(msg, unpack(args)))
+---@generic T
+---@param value `T`
+---@param default T
+---@return T
+function utils.set_default(value, default)
+    if value == nil then
+        return default
     end
+    return value
 end
 
 ---Error with formatted message
 ---@param msg string
 ---@param ... any
 function utils.errorf(msg, ...)
-    utils.assertf(false, msg, ...)
+    local args = { ... }
+    if #args > 0 then
+        for i, a in ipairs(args) do
+            args[i] = vim.inspect(a)
+        end
+        msg = string.format(msg, unpack(args))
+    end
+    error(msg, 2)
+end
+
+---Assert with formatted message.
+---@param v boolean
+---@param msg string
+---@param ... any
+function utils.assertf(v, msg, ...)
+    local args = { ... }
+    if #args > 0 then
+        for i, a in ipairs(args) do
+            args[i] = vim.inspect(a)
+        end
+        msg = string.format(msg, unpack(args))
+    end
+    if not v then
+        error(msg, 2)
+    end
 end
 
 ---In addition to the type_utils, the following are also included.
@@ -126,7 +145,12 @@ function utils.assert_type(obj, expect_type, optional)
     -- Class check
     if type(expect_type) == "table" then
         ---@cast expect_type table
-        utils.assertf(getmetatable(obj) == expect_type, "Wrong class, expect %s, but %s", expect_type, getmetatable(obj))
+        utils.assertf(
+            getmetatable(obj) == expect_type,
+            "Wrong class, expect %s, but %s",
+            expect_type,
+            getmetatable(obj)
+        )
         return
     end
     ---@cast expect_type correct_type
@@ -164,8 +188,7 @@ function utils.assert_type(obj, expect_type, optional)
     end
     utils.assertf(
         expect_type == actual_type,
-        "Wrong type of `%s`, expected %s, but %s",
-        obj,
+        "Wrong type, expected %s, but %s",
         expect_type,
         actual_type
     )

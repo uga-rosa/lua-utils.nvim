@@ -1,17 +1,7 @@
 local utils = require("lua-utils.utils")
+local set_default = utils.set_default
 local assertf = utils.assertf
 local assert_type = utils.assert_type
-
----@generic T
----@param value `T`
----@param default T
----@return T
-local function set_default(value, default)
-    if value == nil then
-        return default
-    end
-    return value
-end
 
 ---============================================
 ---                 CLASS
@@ -50,47 +40,8 @@ end
 ---@param self Seq
 ---@return string
 Seq.__tostring = function(self)
-    local data = vim.inspect(self._data)
-    data = "[" .. data:sub(2, -2) .. "]"
-    return ("Seq<%s>%s#%s"):format(self._type, data, self._len)
-end
-
----@param t1 table
----@param t2 table
-local function table_equal(t1, t2)
-    local ty1 = type(t1)
-    local ty2 = type(t2)
-    if ty1 ~= ty2 then
-        return false
-    end
-    if ty1 ~= "table" and ty2 ~= "table" then
-        return t1 == t2
-    end
-
-    local keySet = {}
-    for k1, v1 in pairs(t1) do
-        local v2 = t2[k1]
-        if v2 == nil or not table_equal(v1, v2) then
-            return false
-        end
-        keySet[k1] = true
-    end
-    for k2, _ in pairs(t2) do
-        if not keySet[k2] then
-            return false
-        end
-    end
-    return true
-end
-
----@param s1 Seq
----@param s2 Seq
----@return boolean
-Seq.__eq = function(s1, s2)
-    if s1._len ~= s2._len then
-        return false
-    end
-    return table_equal(s1._data, s2._data)
+    local data = "[" .. table.concat(self._data, ", ") .. "]"
+    return "@" .. data
 end
 
 ---@param s1 Seq
@@ -158,15 +109,10 @@ end
 ---@param len integer
 ---@param init? any
 ---@return Seq
----
----Example:
----local seqString = Seq.new("string", 4, "hi")
----print(seqString)
---- => Seq<string>[ "hi", "hi", "hi", "hi" ]
 function Seq.newWith(typename, len, init)
+    assert_type(len, "non_negative_integer")
     init = set_default(init, zero_values[typename])
     assert_type(init, typename, true)
-    assert_type(len, "non_negative_integer")
 
     local data = {}
     for i = 1, len do
@@ -416,5 +362,8 @@ end
 function Seq:apply(op)
     self = Seq.map(self, op)
 end
+
+local seq = Seq.new({ 1, 2, 3 })
+print(seq)
 
 return Seq
