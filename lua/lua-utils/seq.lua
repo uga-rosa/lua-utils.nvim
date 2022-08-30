@@ -1,24 +1,24 @@
 local utils = require("lua-utils.utils")
-local set_default = utils.set_default
 local assertf = utils.assertf
 local assert_type = utils.assert_type
+local assert_not_nil = utils.assert_not_nil
 
 ---============================================
 ---                 CLASS
 ---============================================
 
+---@class Array any[]
+
 ---An Wrapped array whose elements are all of the same type T.
 ---@class Seq
----@field private _data any[]
+---@field private _data Array
 ---@field private _len integer
----@field private _type correct_type
 local Seq = {}
 Seq.__index = Seq
 
 ---Returns the entire raw array.
 ---Getter for _data
----@generic T
----@return T[]
+---@return Array
 function Seq:unpack()
     return self._data
 end
@@ -28,13 +28,6 @@ end
 ---@return integer
 function Seq:len()
     return self._len
-end
-
----Returns the type of the item of the Seq.
----Getter for _type
----@return string
-function Seq:type()
-    return self._type
 end
 
 ---@param self Seq
@@ -48,7 +41,6 @@ end
 ---@param s2 Seq
 ---@return Seq
 Seq.__concat = function(s1, s2)
-    assertf(s1._type == s2._type, "Attempted to combine different types of Seq")
     local new = {}
     for i, v in ipairs(s1._data) do
         new[i] = v
@@ -56,7 +48,7 @@ Seq.__concat = function(s1, s2)
     for _, v in ipairs(s2._data) do
         table.insert(new, v)
     end
-    return Seq.new(new, s1._type)
+    return Seq.new(new)
 end
 
 ---============================================
@@ -67,62 +59,45 @@ end
 ---             BASIC OPERATION
 ---============================================
 
-local zero_values = {
-    boolean = false,
-    number = 0,
-    integer = 0,
-    float = 0.0,
-    string = "",
-    table = {},
-    array = {},
-}
-
 ---Generates Seq from array.
----@param arr any[] | Seq
----@param typename? correct_type #Default: type(arr[1])
+---@param arr Array | Seq
 ---@return Seq
-function Seq.new(arr, typename)
+function Seq.new(arr)
     if getmetatable(arr) == Seq then
         ---@cast arr Seq
         return arr
     end
-
-    ---@cast arr any[]
     assert_type(arr, "array")
-    assertf(not (typename == nil and #arr == 0), "Ambiguous type")
-    typename = set_default(typename, type(arr[1]))
-
-    for _, v in ipairs(arr) do
-        assert_type(v, typename)
-    end
 
     return setmetatable({
         _data = arr,
         _len = #arr,
-        _type = typename,
     }, Seq)
 end
 
----Generates Seq from type, length, and initial value.
----If the initial value is omitted, it is automatically set according to type.
----@param typename correct_type
+---Generates Seq with a length of `len` and all elements filled with `init`.
+---`init` is copied shallowy, so be careful when passing the table.
+---`init` is not optional, but can be omitted only when `len` is 0 as an exception.
 ---@param len integer
----@param init? any
+---@param init any
 ---@return Seq
-function Seq.newWith(typename, len, init)
+function Seq.newWith(len, init)
     assert_type(len, "non_negative_integer")
-    init = set_default(init, zero_values[typename])
-    assert_type(init, typename, true)
+    if len == 0 then
+        return setmetatable({
+            _data = {},
+            _len = 0,
+        }, Seq)
+    end
 
+    assert_not_nil(init)
     local data = {}
     for i = 1, len do
         data[i] = init
     end
-
     return setmetatable({
         _data = data,
         _len = len,
-        _type = typename,
     }, Seq)
 end
 
@@ -158,7 +133,6 @@ end
 ---@param x any
 ---@param pos? integer #If i is omitted, added at the end of 's'.
 function Seq:add(x, pos)
-    assert_type(x, self._type)
     if pos == nil then
         table.insert(self._data, x)
     else
@@ -170,12 +144,10 @@ end
 
 ---Insert items of Seq 'src' into Seq 's' at a specific position.
 ---*destructive*
----@generic T
----@param src Seq | T[]
+---@param src Array | Seq
 ---@param pos? integer #If i is omitted, added at the end of 'dst'.
 function Seq:insert(src, pos)
-    src = Seq.new(src, self._type)
-    assertf(self._type == src._type, "Attempted to insert different types of Seq")
+    src = Seq.new(src)
 
     if pos == nil then
         for _, v in ipairs(src._data) do
@@ -192,12 +164,11 @@ end
 
 ---Deletes the items from i-th to j-th (including the ends of the range).
 ---*destructive*
----@generic T
 ---@param i integer
 ---@param j? integer #Default: Same as 'i'
 function Seq:delete(i, j)
     assert_index(self._len, i)
-    j = set_default(j, i)
+    j = vim.F.if_nil(j, i)
     assert_index(self._len, j)
     assertf(i <= j, "i (%s) must be less than or equal to j (%s)", i, j)
 
@@ -208,14 +179,14 @@ function Seq:delete(i, j)
 end
 
 ---Get the slice of Seq 's' from i-th to j-th (including the ends of the range).
----@param s Seq | any[]
+---@param s Array | Seq
 ---@param i integer
 ---@param j? integer #Default: Same as 'i'
 ---@return Seq
 function Seq.slice(s, i, j)
     s = Seq.new(s)
     assert_index(s._len, i)
-    j = set_default(j, i)
+    j = vim.F.if_nil(j, i)
     assert_index(s._len, j)
     assertf(i <= j, "i (%s) must be less than or equal to j (%s)", i, j)
 
@@ -224,14 +195,14 @@ function Seq.slice(s, i, j)
         table.insert(result, s._data[k])
     end
 
-    return Seq.new(result, s._type)
+    return Seq.new(result)
 end
 
 ---Similier to table.remove().
 ---@param pos? integer #Default: self:len()
 ---@return Seq
 function Seq:pop(pos)
-    pos = set_default(pos, self._len)
+    pos = vim.F.if_nil(pos, self._len)
     assert_index(self._len, pos)
     self._len = self._len - 1
     return table.remove(self._data, pos)
@@ -242,9 +213,8 @@ end
 ---============================================
 
 ---Checks if every item fulfills 'pred'.
----@generic T
----@param s Seq | T[]
----@param pred fun(x: T): boolean
+---@param s Array | Seq
+---@param pred fun(x: any): boolean
 ---@return boolean
 function Seq.all(s, pred)
     s = Seq.new(s)
@@ -259,9 +229,8 @@ function Seq.all(s, pred)
 end
 
 ---Checks if at least one item fulfills 'pred'.
----@generic T
----@param s Seq | T[]
----@param pred fun(x: T): boolean
+---@param s Array | Seq
+---@param pred fun(x: any): boolean
 ---@return boolean
 function Seq.any(s, pred)
     s = Seq.new(s)
@@ -276,13 +245,11 @@ function Seq.any(s, pred)
 end
 
 ---Returns the number of occurrences of the item 'x' in the Seq 's'.
----@generic T
----@param s Seq | T[]
----@param x T
+---@param s Array | Seq
+---@param x any
 ---@return integer
 function Seq.count(s, x)
     s = Seq.new(s)
-    assert_type(x, s._type)
 
     local c = 0
     for _, v in ipairs(s._data) do
@@ -294,15 +261,14 @@ function Seq.count(s, x)
 end
 
 ---Returns a new sequence without duplicates.
----@generic T
----@param s Seq | T[]
+---@param s Array | Seq
 ---@return Seq
 function Seq.deduplicate(s)
     s = Seq.new(s)
 
     ---@type table<any, boolean>
     local set = {}
-    ---@type any[]
+    ---@type Array
     local new = {}
     for _, v in ipairs(s._data) do
         if not set[v] then
@@ -310,13 +276,12 @@ function Seq.deduplicate(s)
             table.insert(new, v)
         end
     end
-    return Seq.new(new, s._type)
+    return Seq.new(new)
 end
 
 ---Returns a new Seq with all the items of 's' that fulfill the predicate 'pred'.
----@generic T
----@param s Seq | T[]
----@param pred fun(x: T): boolean
+---@param s Array | Seq
+---@param pred fun(x: any): boolean
 ---@return Seq
 function Seq.filter(s, pred)
     s = Seq.new(s)
@@ -328,21 +293,19 @@ function Seq.filter(s, pred)
             table.insert(new, v)
         end
     end
-    return Seq.new(new, s._type)
+    return Seq.new(new)
 end
 
 ---Keeps the items in the passed sequence 's' if they fulfill the predicate 'pred'.
 ---*destructive*
----@generic T
----@param pred fun(x: T): boolean
+---@param pred fun(x: any): boolean
 function Seq:keepIf(pred)
     self = Seq.filter(self, pred)
 end
 
 ---Returns a new sequence with the results of the 'op' function applied to every item in the sequence 's'.
----@generic T, S
----@param s Seq | T[]
----@param op fun(x: T): S
+---@param s Array | Seq
+---@param op fun(x: any): any
 ---@return Seq
 function Seq.map(s, op)
     s = Seq.new(s)
@@ -357,8 +320,7 @@ end
 
 ---Applies 'op' to every item in the sequence 's' modifying it directly.
 ---*destructive*
----@generic T, S
----@param op fun(x: T): S
+---@param op fun(x: any): any
 function Seq:apply(op)
     self = Seq.map(self, op)
 end

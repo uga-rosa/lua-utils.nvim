@@ -137,25 +137,18 @@ function utils.type(obj)
     return type_name
 end
 
----Check if a type/class of 'obj' is 'expect_type'.
+---Check if a type of 'obj' is 'expect_type'.
 ---@param obj any
----@param expect_type correct_type | table
+---@param expect_type correct_type | correct_type[]
 ---@param optional? boolean #Whether nil is acceptable.
 function utils.assert_type(obj, expect_type, optional)
-    -- Class check
-    if type(expect_type) == "table" then
-        ---@cast expect_type table
-        utils.assertf(
-            getmetatable(obj) == expect_type,
-            "Wrong class, expect %s, but %s",
-            expect_type,
-            getmetatable(obj)
-        )
-        return
+    if type(expect_type) ~= "table" then
+        expect_type = { expect_type }
     end
-    ---@cast expect_type correct_type
-
-    utils.assert_type_name(expect_type)
+    ---@cast expect_type correct_type[]
+    for _, t in ipairs(expect_type) do
+        utils.assert_type_name(t)
+    end
 
     if optional and obj == nil then
         return
@@ -187,11 +180,18 @@ function utils.assert_type(obj, expect_type, optional)
         end
     end
     utils.assertf(
-        expect_type == actual_type,
-        "Wrong type, expected %s, but %s",
+        vim.tbl_contains(expect_type, actual_type),
+        "Wrong type of `%s`, expected %s, but %s",
+        obj,
         expect_type,
         actual_type
     )
+end
+
+---Check if a is nil
+---@param a any
+function utils.assert_not_nil(a)
+    utils.assertf(a ~= nil, "Assertion: nil check")
 end
 
 return utils
