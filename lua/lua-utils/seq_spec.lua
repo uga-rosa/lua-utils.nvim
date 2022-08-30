@@ -14,7 +14,7 @@ local function add(x)
     end
 end
 
-describe("Unit test for Seq.lua", function()
+describe("Unit test for seq.lua", function()
     describe("CLASS", function()
         it("unpack", function()
             assert.same({ 1, 2, 3, 4, 5 }, seq:unpack())
@@ -101,6 +101,22 @@ describe("Unit test for Seq.lua", function()
             local seq2 = Seq.new({ 1, 2, 3, 4, 5 })
             seq2:apply(add(3))
             assert.same({ 4, 5, 6, 7, 8 }, seq2:unpack())
+        end)
+        it("reversed", function()
+            assert.same({ 5, 4, 3, 2, 1 }, seq:reversed():unpack())
+            assert.same({ 1, 2, 3, 4, 5 }, seq:unpack())
+        end)
+        it("reverse", function()
+            local seq2 = Seq.new({ 1, 2, 3, 4, 5 })
+            seq2:reverse()
+            assert.same({ 5, 4, 3, 2, 1 }, seq2:unpack())
+        end)
+        it("reverse_iter", function()
+            local c = 11
+            for v in Seq.reverse_iter({ 6, 7, 8, 9, 10 }) do
+                c = c - 1
+                assert.equals(c, v)
+            end
         end)
     end)
 end)

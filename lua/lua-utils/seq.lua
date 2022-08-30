@@ -315,4 +315,40 @@ function Seq:apply(op)
     self._len = new_self._len
 end
 
+---Returns a Seq with the order reversed.
+---@param s Array | Seq
+---@return Seq
+function Seq.reversed(s)
+    s = Seq.new(s)
+    local result = {}
+    for i = s._len, 1, -1 do
+        table.insert(result, s._data[i])
+    end
+    return Seq.new(result)
+end
+
+---Reverses the order of self.
+---*destructive*
+function Seq:reverse()
+    local len = self._len
+    local raw = self._data
+    for i = 1, math.floor(self._len / 2) do
+        raw[i], raw[len - i + 1] = raw[len - i + 1], raw[i]
+    end
+end
+
+---Returns an iterator that retrieves Seq elements in reverse order.
+---@param s any
+---@return function
+function Seq.reverse_iter(s)
+    s = Seq.new(s)
+    local i = s._len + 1
+    return function()
+        i = i - 1
+        if i > 0 then
+            return s._data[i]
+        end
+    end
+end
+
 return Seq
