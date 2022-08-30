@@ -37,20 +37,6 @@ Seq.__tostring = function(self)
     return "@" .. data
 end
 
----@param s1 Seq
----@param s2 Seq
----@return Seq
-Seq.__concat = function(s1, s2)
-    local new = {}
-    for i, v in ipairs(s1._data) do
-        new[i] = v
-    end
-    for _, v in ipairs(s2._data) do
-        table.insert(new, v)
-    end
-    return Seq.new(new)
-end
-
 ---============================================
 ---                 METHOD
 ---============================================
@@ -124,7 +110,7 @@ end
 ---@param value any
 function Seq:set(pos, value)
     assert_index(self._len, pos)
-    assertf(pos ~= self._len, "To append item, use 'add' method")
+    assertf(pos ~= self._len + 1, "To append item, use 'add' method")
     self._data[pos] = value
 end
 
@@ -133,7 +119,7 @@ end
 ---@param x any
 ---@param pos? integer #If i is omitted, added at the end of 's'.
 function Seq:add(x, pos)
-    if pos == nil then
+    if pos == nil or pos == self._len + 1 then
         table.insert(self._data, x)
     else
         assert_index(self._len, pos)
@@ -300,7 +286,9 @@ end
 ---*destructive*
 ---@param pred fun(x: any): boolean
 function Seq:keepIf(pred)
-    self = Seq.filter(self, pred)
+    local new_self = Seq.filter(self, pred)
+    self._data = new_self._data
+    self._len = new_self._len
 end
 
 ---Returns a new sequence with the results of the 'op' function applied to every item in the sequence 's'.
@@ -322,7 +310,9 @@ end
 ---*destructive*
 ---@param op fun(x: any): any
 function Seq:apply(op)
-    self = Seq.map(self, op)
+    local new_self = Seq.map(self, op)
+    self._data = new_self._data
+    self._len = new_self._len
 end
 
 return Seq
