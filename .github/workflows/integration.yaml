@@ -4,9 +4,8 @@ on:
   push:
     branchs:
       - main
-  pull_request:
-    branchs:
-      - main
+    paths:
+      - '**.lua'
 
 jobs:
   integration:
