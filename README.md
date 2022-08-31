@@ -8,3 +8,8 @@ Library of useful functions for neovim Lua.
 # lua-utils/seq
 
 Provide class `Seq` which wrapped array-like table.
+
+# lua-utils/regex
+
+Provide class `regex` to handle vim regexp from Lua.
+vim.regex is too poor...
